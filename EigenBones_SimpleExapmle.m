@@ -11,7 +11,7 @@
 %--------------------------------------------------------------
 clear; close all;
 randn('seed',0);
-load PEVDToyProblem3Estimates.mat
+GeneratePEVDToyProblem3Estimates
 R = Rhat2;
 Nfft = 1024; M = size(R,1);
 MinRunLength = 16;
