@@ -214,39 +214,14 @@ for m = 1:M,
         axis([-3.5 3.5 -.5 1.2]); grid on;
     end;
 end;
-subplot(M,Q,1); title('$q=1$'); ylabel('$\ell_{q,1}[\tau]$','interpreter','latex');
+subplot(M,Q,1); title('$q=1$'); ylabel('$\ell_{1,q}[\tau]$','interpreter','latex');
 subplot(M,Q,2); title('$q=2$'); subplot(M,Q,3); title('$q=3$'); subplot(M,Q,4); title('$q=4$'); subplot(M,Q,5); title('$q=5$');
-subplot(M,Q,6); ylabel('$\ell_{q,2}[\tau]$');
-subplot(M,Q,11); ylabel('$\ell_{q,3}[\tau]$'); xlabel('$\tau$','interpreter','latex');
+subplot(M,Q,6); ylabel('$\ell_{2,q}[\tau]$');
+subplot(M,Q,11); ylabel('$\ell_{3,q}[\tau]$'); xlabel('$\tau$','interpreter','latex');
 for i = 12:15, subplot(M,Q,i); xlabel('$\tau$','interpreter','latex'); end;
 set(gcf,'OuterPosition',[230 250 570 320]);
 set(gca,'LooseInset',get(gca,'TightInset'));
 print -depsc ./figures/DifficultReconstructions2.eps
-
-return;
-
-subplot(223); stem(t,real(S1t(:,2)),'b','linewidth',1); hold on; plot(t,imag(S1t(:,2)),'r*','linewidth',1);
-xlabel('tag $\tau$','interpreter','latex','fontsize',FS);
-ylabel('$\ell_{q,2}[\tau]$','interpreter','latex','fontsize',FS);
-axis([-3.5 3.5 -1.25 3.75]); grid on;
-text(-3,2.75,'$q=1$','interpreter','latex');
-subplot(224);
-stem(t,real(S1t(:,3)),'b','linewidth',1); hold on; plot(t,imag(S1t(:,3)),'r*','linewidth',1);
-xlabel('tag $\tau$','interpreter','latex','fontsize',FS);
-axis([-3.5 3.5 -1.25 3.75]); grid on;
-text(-3,2.75,'$q=2$','interpreter','latex');
-subplot(222);
-% for legend only
-plot(-10,-10,'bo','linewidth',1); hold on; plot(-10,-10,'r*','linewidth',1);
-% plot actual curves
-stem(t,real(S1t(:,4)),'b','linewidth',1); hold on; plot(t,imag(S1t(:,4)),'r*','linewidth',1);
-axis([-3.5 3.5 -1.25 3.75]); grid on;
-text(-3,2.75,'$q=2$','interpreter','latex');
-legend({'$\Re\{\cdot\}$','$\Im\{\cdot\}$'},'interpreter','latex','Location','NorthEast');
-set(gcf,'OuterPosition',[230 250 570 290]);
-set(gca,'LooseInset',get(gca,'TightInset'));
-%print -depsc ./figures/Reconstructions.eps
-
 
 %--------------------------------------------------------------
 %  some functions

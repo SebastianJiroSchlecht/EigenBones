@@ -18,35 +18,35 @@ MinRunLength = 16;
 Support=3;
 
 %--------------------------------------------------------------
-%  (1) find segments
+%  (1) find bones
 %--------------------------------------------------------------
 Rf = ParaHermDFT(R,Nfft);              % DFT
 D = BinwiseEVD(Rf);                 
 Dd = min(-diff(D,1),[],1);             % smallest eigenvalue distance per bin;
 Thresh = max(Dd)/5;                   % set threshold at 10% of max(min(EV dist.))
-k = find(Dd>Thresh); 
-kdiff = diff([k k(1)+Nfft]);       % '1' means index could be part of a segment (if runlength is sufficient)
-SegMarginIndices = find(kdiff>1);
-SegStart=k(1); ii=1;
-for i = 1:length(SegMarginIndices),
-    SegEnd = k(SegMarginIndices(i)-1);
-    if (SegEnd-SegStart)>MinRunLength,       % check that segments aren't too short 
-       Omega(ii,:) = [SegStart SegEnd];      %   (currently this ignores that the first and last segment could be wrapped)
+q = find(Dd>Thresh); 
+kdiff = diff([q q(1)+Nfft]);       % '1' means index could be part of a bones (if runlength is sufficient)
+BoneMarginIndices = find(kdiff>1);
+BoneStart=q(1); ii=1;
+for i = 1:length(BoneMarginIndices),
+    BoneEnd = q(BoneMarginIndices(i)-1);
+    if (BoneEnd-BoneStart)>MinRunLength,       % check that bones aren't too short 
+       Omega(ii,:) = [BoneStart BoneEnd];      % (currently this ignores that the first and last bone could be wrapped)
        ii = ii+1;
     end;      
-    if i<length(SegMarginIndices),
-       SegStart = k(SegMarginIndices(i)+1);
+    if i<length(BoneMarginIndices),
+       BoneStart = q(BoneMarginIndices(i)+1);
     end;    
 end;    
-% check if there is a last segment 
-if SegMarginIndices(i)<length(k);
-   SegStart = k(SegMarginIndices(i)+1); 
-   SegEnd = k(end);
-   if (SegEnd-SegStart)>MinRunLength, 
-       Omega = [Omega; SegStart SegEnd];
+% check if there is a last bone 
+if BoneMarginIndices(i)<length(q);
+   BoneStart = q(BoneMarginIndices(i)+1); 
+   BoneEnd = q(end);
+   if (BoneEnd-BoneStart)>MinRunLength, 
+       Omega = [Omega; BoneStart BoneEnd];
    end;
 end;
-Q = size(Omega,1);                     % # of segments
+Q = size(Omega,1);                     % # of bones
 
 %
 %   plot minimum eigenvalue distance 
@@ -64,7 +64,7 @@ legend({'min.~eigenvalue distance','threshold ${\cal{T}}$'},...
        'interpreter','latex','fontsize',10,'location','NorthEast');
 text(0.02, 2.5,'(a)','interpreter','latex');
 %
-%   plot segments
+%   plot bones
 %
 subplot(212);
 plot(((Omega(1,1):Omega(1,2))-1)/Nfft,D(:,Omega(1,1):Omega(1,2)),'b-','linewidth',1); 
@@ -92,7 +92,7 @@ set(gcf,'OuterPosition',[230 250 570 330]);
 set(gca,'LooseInset',get(gca,'TightInset'));
 print -depsc ./figures/Segmentation.eps
 
-% check if the first segment wraps around to the back
+% check if the first bone wraps around to the back
 if (Omega(1,1)==1) && (Omega(Q,2)==Nfft),
    Omega(Q,2) = Omega(1,2)+Nfft;
    Omega = Omega(2:Q,:);
@@ -100,18 +100,18 @@ if (Omega(1,1)==1) && (Omega(Q,2)==Nfft),
 end;    
 
 %--------------------------------------------------------------
-%  (2) individual reconstruction of segments and matching
+%  (2) individual reconstruction of bones and matching
 %--------------------------------------------------------------
 t = (-Support:Support)';
-for k = 1:Q,                               % segments should really be re-ordered --- start with longest one
-   Lseg = D(:,mod( (Omega(k,1):Omega(k,2))-1,Nfft)+1);
-   omega =  ( (Omega(k,1):Omega(k,2))'-1)/1024*2*pi;
-   if k == 1,
-      % time domain reconstruction for first segment
+for q = 1:Q,                               % bones should really be re-ordered --- start with longest one
+   Lseg = D(:,mod( (Omega(q,1):Omega(q,2))-1,Nfft)+1);
+   omega =  ( (Omega(q,1):Omega(q,2))'-1)/1024*2*pi;
+   if q == 1,
+      % time domain reconstruction for first bone
       S1t = inverseFourierTransformVector(Lseg',omega,t);
       S1t_norm = S1t./(ones(length(t),1)*sqrt(sum(abs(S1t).^2,1)));
    else   
-      % subsequent sequents
+      % subsequent bones
       dummy = inverseFourierTransformVector(Lseg',omega,t);
       % find permutation matrix
       dummy_norm = dummy./(ones(length(t),1)*sqrt(sum(abs(dummy).^2,1)));
@@ -121,17 +121,17 @@ for k = 1:Q,                               % segments should really be re-ordere
    end;
 end;
 %
-%  plot reconstructed segments
+%  plot reconstructed bones
 %
 figure(2);
 FS = 12;
 subplot(221); stem(t,real(S1t(:,1)),'b','linewidth',1); hold on; plot(t,imag(S1t(:,1)),'r*','linewidth',1);
-   ylabel('$\ell_{q,1}[\tau]$','interpreter','latex','fontsize',FS);
+   ylabel('$\ell_{1,q}[\tau]$','interpreter','latex','fontsize',FS);
    axis([-3.5 3.5 -1.25 3.75]); grid on;
    text(-3,2.75,'$q=1$','interpreter','latex');
 subplot(223); stem(t,real(S1t(:,2)),'b','linewidth',1); hold on; plot(t,imag(S1t(:,2)),'r*','linewidth',1);
    xlabel('tag $\tau$','interpreter','latex','fontsize',FS);
-   ylabel('$\ell_{q,2}[\tau]$','interpreter','latex','fontsize',FS);
+   ylabel('$\ell_{2,q}[\tau]$','interpreter','latex','fontsize',FS);
    axis([-3.5 3.5 -1.25 3.75]); grid on;
    text(-3,2.75,'$q=1$','interpreter','latex');
 subplot(224); 
@@ -152,7 +152,7 @@ set(gca,'LooseInset',get(gca,'TightInset'));
 print -depsc ./figures/Reconstructions.eps
    
 %--------------------------------------------------------------
-%  (3) reconstruction --- segment-size weighted average
+%  (3) reconstruction --- bone-size weighted average
 %--------------------------------------------------------------
 W = (Omega(:,2)-Omega(:,1));
 W = W/sum(W);
