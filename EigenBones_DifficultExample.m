@@ -17,12 +17,13 @@ R = R_gt + Ae + ParaHerm(Ae);
 Nfft = 1024; M = size(R,1);
 MinBoneSize = 16;
 Support=3;
+ThreshFraction = 1/5;
 
 %--------------------------------------------------------------
 %  EigenBones Method
 %--------------------------------------------------------------
 
-[Lambda_hat, Q, Omega, S1tu, D, Dd,Thresh] = EigenBones(R,Nfft,Support,MinBoneSize);
+[Lambda_hat, Q, BoneBounds, BoneTime, D, Dd] = EigenBones(R,Nfft,Support,MinBoneSize, ThreshFraction);
 
 %--------------------------------------------------------------
 %  display
@@ -32,6 +33,7 @@ Support=3;
 %
 figure(1); clf;
 subplot(211); plot((0:(Nfft-1))/Nfft,Dd,'b-','linewidth',1);
+Thresh = max(Dd)*ThreshFraction;
 hold on;
 plot([0 1],[1 1]*Thresh,'r--','linewidth',1);
 axis([0 1 0 .6]); grid on;
@@ -70,7 +72,7 @@ ylabel('$\hat{\lambda}_{m,k}$','interpreter','latex','fontsize',10);
 %
 subplot(212); hold on;
 for i = 1:Q
-    omega = ((Omega(i,1):Omega(i,2))-1);
+    omega = ((BoneBounds(i,1):BoneBounds(i,2))-1);
     omega = mod(omega-1,Nfft)+1; % wrap around
     Domega = D(:,omega);
     omega(omega == Nfft) = nan; % break line at wrap around
@@ -145,8 +147,8 @@ for m = 1:M,
         subplot(M,Q,(m-1)*Q+q);
         h = plot([-3.4 -3.4 3.4 3.4 -3.4],[1.15 -.45 -.45 1.15 1.15],'-','linewidth',2);
         set(h(1),'color',CCode(seq(i),:)); hold on;
-        stem(t,real(S1tu(:,m+(q-1)*M)),'b','linewidth',1); hold on;
-        plot(t,imag(S1tu(:,1)),'r*','linewidth',1);
+        stem(t,real(BoneTime(:,m+(q-1)*M)),'b','linewidth',1); hold on;
+        plot(t,imag(BoneTime(:,1)),'r*','linewidth',1);
         axis([-3.5 3.5 -.5 1.2]); grid on;
     end;
 end;

@@ -16,12 +16,13 @@ R = Rhat2;
 Nfft = 1024; M = size(R,1);
 MinBoneSize = 16;
 Support=3;
+ThreshFraction = 1/5;
 
 %--------------------------------------------------------------
 %  EigenBones Method
 %--------------------------------------------------------------
 
-[Lambda_hat, Q, Omega, S1t, D, Dd,Thresh] = EigenBones(R,Nfft,Support,MinBoneSize);
+[Lambda_hat, Q, BoneBounds, BoneTime, D, Dd] = EigenBones(R,Nfft,Support,MinBoneSize,ThreshFraction);
 
 %--------------------------------------------------------------
 %  display
@@ -32,6 +33,7 @@ Support=3;
 figure(1); clf;
 subplot(211); plot((0:(Nfft-1))/Nfft,Dd,'b-','linewidth',1); 
 hold on; 
+Thresh = max(Dd)*ThreshFraction;
 plot([0 1],[1 1]*Thresh,'r--','linewidth',1);
 axis([0 1 0 3.2]); grid on;
 set(gca,'TickLabelInterpreter','latex',...
@@ -47,7 +49,7 @@ text(0.02, 2.5,'(a)','interpreter','latex');
 %
 subplot(212); hold on;
 for i = 1:Q
-    omega = ((Omega(i,1):Omega(i,2))-1);
+    omega = ((BoneBounds(i,1):BoneBounds(i,2))-1);
     omega = mod(omega-1,Nfft)+1; % wrap around
     Domega = D(:,omega);
     omega(omega == Nfft) = nan; % break line at wrap around
@@ -73,17 +75,17 @@ print -depsc ./figures/Segmentation.eps
 figure(2);
 t = (-Support:Support)';
 FS = 12;
-subplot(221); stem(t,real(S1t(:,1)),'b','linewidth',1); hold on; plot(t,imag(S1t(:,1)),'r*','linewidth',1);
+subplot(221); stem(t,real(BoneTime(:,1)),'b','linewidth',1); hold on; plot(t,imag(BoneTime(:,1)),'r*','linewidth',1);
    ylabel('$\ell_{1,q}[\tau]$','interpreter','latex','fontsize',FS);
    axis([-3.5 3.5 -1.25 3.75]); grid on;
    text(-3,2.75,'$q=1$','interpreter','latex');
-subplot(223); stem(t,real(S1t(:,2)),'b','linewidth',1); hold on; plot(t,imag(S1t(:,2)),'r*','linewidth',1);
+subplot(223); stem(t,real(BoneTime(:,2)),'b','linewidth',1); hold on; plot(t,imag(BoneTime(:,2)),'r*','linewidth',1);
    xlabel('tag $\tau$','interpreter','latex','fontsize',FS);
    ylabel('$\ell_{2,q}[\tau]$','interpreter','latex','fontsize',FS);
    axis([-3.5 3.5 -1.25 3.75]); grid on;
    text(-3,2.75,'$q=1$','interpreter','latex');
 subplot(224); 
-   stem(t,real(S1t(:,3)),'b','linewidth',1); hold on; plot(t,imag(S1t(:,3)),'r*','linewidth',1);
+   stem(t,real(BoneTime(:,3)),'b','linewidth',1); hold on; plot(t,imag(BoneTime(:,3)),'r*','linewidth',1);
    xlabel('tag $\tau$','interpreter','latex','fontsize',FS);
    axis([-3.5 3.5 -1.25 3.75]); grid on;
    text(-3,2.75,'$q=2$','interpreter','latex');
@@ -91,7 +93,7 @@ subplot(222);
    % for legend only
    plot(-10,-10,'bo','linewidth',1); hold on; plot(-10,-10,'r*','linewidth',1);
    % plot actual curves
-   stem(t,real(S1t(:,4)),'b','linewidth',1); hold on; plot(t,imag(S1t(:,4)),'r*','linewidth',1);
+   stem(t,real(BoneTime(:,4)),'b','linewidth',1); hold on; plot(t,imag(BoneTime(:,4)),'r*','linewidth',1);
    axis([-3.5 3.5 -1.25 3.75]); grid on;
    text(-3,2.75,'$q=2$','interpreter','latex');
    legend({'$\Re\{\cdot\}$','$\Im\{\cdot\}$'},'interpreter','latex','Location','NorthEast');
