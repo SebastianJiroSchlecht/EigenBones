@@ -14,40 +14,18 @@ randn('seed',0);
 GeneratePEVDToyProblem3Estimates
 R = Rhat2;
 Nfft = 1024; M = size(R,1);
-MinRunLength = 16;
+MinBoneSize = 16;
 Support=3;
 
 %--------------------------------------------------------------
-%  (1) find bones
+%  EigenBones Method
 %--------------------------------------------------------------
-Rf = ParaHermDFT(R,Nfft);              % DFT
-D = BinwiseEVD(Rf);                 
-Dd = min(-diff(D,1),[],1);             % smallest eigenvalue distance per bin;
-Thresh = max(Dd)/5;                   % set threshold at 10% of max(min(EV dist.))
-q = find(Dd>Thresh); 
-kdiff = diff([q q(1)+Nfft]);       % '1' means index could be part of a bones (if runlength is sufficient)
-BoneMarginIndices = find(kdiff>1);
-BoneStart=q(1); ii=1;
-for i = 1:length(BoneMarginIndices),
-    BoneEnd = q(BoneMarginIndices(i)-1);
-    if (BoneEnd-BoneStart)>MinRunLength,       % check that bones aren't too short 
-       Omega(ii,:) = [BoneStart BoneEnd];      % (currently this ignores that the first and last bone could be wrapped)
-       ii = ii+1;
-    end;      
-    if i<length(BoneMarginIndices),
-       BoneStart = q(BoneMarginIndices(i)+1);
-    end;    
-end;    
-% check if there is a last bone 
-if BoneMarginIndices(i)<length(q);
-   BoneStart = q(BoneMarginIndices(i)+1); 
-   BoneEnd = q(end);
-   if (BoneEnd-BoneStart)>MinRunLength, 
-       Omega = [Omega; BoneStart BoneEnd];
-   end;
-end;
-Q = size(Omega,1);                     % # of bones
 
+[Lambda_hat, Q, Omega, S1t, D, Dd,Thresh] = EigenBones(R,Nfft,Support,MinBoneSize);
+
+%--------------------------------------------------------------
+%  display
+%--------------------------------------------------------------
 %
 %   plot minimum eigenvalue distance 
 %
@@ -63,22 +41,19 @@ ylabel('$\delta_k$, $\cal{T}$','interpreter','latex','fontsize',10);
 legend({'min.~eigenvalue distance','threshold ${\cal{T}}$'},...
        'interpreter','latex','fontsize',10,'location','NorthEast');
 text(0.02, 2.5,'(a)','interpreter','latex');
+
 %
 %   plot bones
 %
-subplot(212);
-plot(((Omega(1,1):Omega(1,2))-1)/Nfft,D(:,Omega(1,1):Omega(1,2)),'b-','linewidth',1); 
-hold on;
-plot(Omega(1,2)/Nfft*[1 1],D(:,Omega(1,2)),'b.','linewidth',5);
-for i = 2:Q,
-    plot(((Omega(i,1):Omega(i,2))-1)/Nfft,D(:,Omega(i,1):Omega(i,2)),'b-','linewidth',1); 
-    if i<Q,
-       plot(Omega(i,1)/Nfft*[1 1],D(:,Omega(i,1)),'b.','linewidth',5);
-       plot(Omega(i,2)/Nfft*[1 1],D(:,Omega(i,2)),'b.','linewidth',5);
-    else
-       plot(Omega(i,1)/Nfft*[1 1],D(:,Omega(i,1)),'b.','linewidth',5);
-    end;
-end;
+subplot(212); hold on;
+for i = 1:Q
+    omega = ((Omega(i,1):Omega(i,2))-1);
+    omega = mod(omega-1,Nfft)+1; % wrap around
+    Domega = D(:,omega);
+    omega(omega == Nfft) = nan; % break line at wrap around
+    plot(omega/Nfft,Domega,'b-','linewidth',1);
+    plot(omega([1 end])/Nfft.*ones(M,1),Domega(:,[1 end]),'b.','linewidth',5);
+end
 axis([0 1 1 5.5]);
 grid on;
 set(gca,'TickLabelInterpreter','latex',...
@@ -92,38 +67,11 @@ set(gcf,'OuterPosition',[230 250 570 330]);
 set(gca,'LooseInset',get(gca,'TightInset'));
 print -depsc ./figures/Segmentation.eps
 
-% check if the first bone wraps around to the back
-if (Omega(1,1)==1) && (Omega(Q,2)==Nfft),
-   Omega(Q,2) = Omega(1,2)+Nfft;
-   Omega = Omega(2:Q,:);
-   Q= Q-1;
-end;    
-
-%--------------------------------------------------------------
-%  (2) individual reconstruction of bones and matching
-%--------------------------------------------------------------
-t = (-Support:Support)';
-for q = 1:Q,                               % bones should really be re-ordered --- start with longest one
-   Lseg = D(:,mod( (Omega(q,1):Omega(q,2))-1,Nfft)+1);
-   omega =  ( (Omega(q,1):Omega(q,2))'-1)/1024*2*pi;
-   if q == 1,
-      % time domain reconstruction for first bone
-      S1t = inverseFourierTransformVector(Lseg',omega,t);
-      S1t_norm = S1t./(ones(length(t),1)*sqrt(sum(abs(S1t).^2,1)));
-   else   
-      % subsequent bones
-      dummy = inverseFourierTransformVector(Lseg',omega,t);
-      % find permutation matrix
-      dummy_norm = dummy./(ones(length(t),1)*sqrt(sum(abs(dummy).^2,1)));
-      P = abs(S1t_norm'*dummy_norm);
-      for i = 1:M, P(:,i)=(P(:,i)>=(max(P(:,i))-eps)); end;
-      S1t = [S1t, dummy*P'];
-   end;
-end;
 %
 %  plot reconstructed bones
 %
 figure(2);
+t = (-Support:Support)';
 FS = 12;
 subplot(221); stem(t,real(S1t(:,1)),'b','linewidth',1); hold on; plot(t,imag(S1t(:,1)),'r*','linewidth',1);
    ylabel('$\ell_{1,q}[\tau]$','interpreter','latex','fontsize',FS);
@@ -151,16 +99,6 @@ set(gcf,'OuterPosition',[230 250 570 290]);
 set(gca,'LooseInset',get(gca,'TightInset'));
 print -depsc ./figures/Reconstructions.eps
    
-%--------------------------------------------------------------
-%  (3) reconstruction --- bone-size weighted average
-%--------------------------------------------------------------
-W = (Omega(:,2)-Omega(:,1));
-W = W/sum(W);
-Lambda_hat = zeros(length(t),M);
-for m = 1:M,
-   Lambda_hat(:,m) = sum(S1t(:,m:M:end).*(ones(length(t),1)*W'),2);
-end;
-
 %
 %   reconstruction figure
 %
@@ -182,26 +120,5 @@ set(gcf,'OuterPosition',[230 250 570 220]);
 set(gca,'LooseInset',get(gca,'TightInset'));
 print -depsc ./figures/Retrieved.eps
 
-% save PEVDToyProblem3_NewMethodSol.mat Lambda_hat    
     
-%--------------------------------------------------------------
-%  some functions
-%--------------------------------------------------------------
-function D = BinwiseEVD(A)
-M = size(A,1); Nfft = size(A,3);
-D = zeros(M,Nfft);
-for it = 1:Nfft,
-    [~,dummy] = eig(A(:,:,it),'vector');
-    % majorize
-    D(:,it) = sort(real(dummy),'descend');
-end
-end
 
-
-function x = inverseFourierTransformVector(X,w,t)
-
-z = exp(1i*w(:));
-zz = z.^(-t(:)');
-x = zz \ X;
-
-end
